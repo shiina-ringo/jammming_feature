@@ -1,0 +1,55 @@
+Feature Request: Only display songs not currently present in the playlist in the search results
+August 22 2018
+
+OBJECTIVE
+
+To give users the ability to filter out songs that are already included in the playlist from the search results.
+
+BACKGROUND 
+
+The main feature of Jammming is for users to construct a playlist from songs retrieved via Spotify's search function. Given that the user is purposefully curating and saving a collection of tracks, it is likely that they do not wish to include duplicates within the same playlist; in fact, the current implementation of Jammming makes this assumption by disallowing said behavior.
+
+As we are asserting that there are to be no duplicates in a playlist, it makes sense to filter out songs that are already included in the playlist from the search results. Furthermore, this filtering should happen real-time, e.g. adding a track would immediately remove it from the search results. This feature would have two obvious benefits:
+
+* Remove clutter from the search results.
+* Reduce potential confusion that may arise from the current behavior wherein clicking the Add (+) button next to a pre-included track does nothing.
+
+TECHNICAL DESIGN
+
+1. Pass the current playlist to the TrackList component
+
+We first pass the current playlist from the App component to the SearchResults component, from which we then pass it along to the TrackList component as an exclusion list. Implementations details are as follows.
+
+In the render() method of the App component, pass in playlistTracks={this.state.playlistTracks} in the SearchResults tag. Then, in the render() method of the SearchResults component, pass in exclusionList={this.props.playlistTracks} in the TrackList tag.
+
+This will allow the current playlist to be accessible within the TrackList component via the new exclusionList property.
+
+2. In the TrackList component, render only the Tracks that are not present in exclusionList
+
+First, we add the following helper method to the TrackList component:
+
+notInExclusionList(track) {
+  if (!this.props.exclusionList) return true;
+  let excluded = this.props.exclusionList.find(savedTrack => savedTrack.id === track.id);
+  return !excluded;
+}
+
+In other words, this returns true if and only if the argument track is not a member of exclusionList.
+
+Then, in the render() method, we need only replace the call to this.props.tracks.map(...) with a call to this.props.tracks.filter(this.notInExclusionList).map(...) to render only those tracks that pass the filter.
+
+Finally, we add a constructor wherein we bind our new method:
+
+constructor(props) {
+  super(props);
+  this.notInExclusionList = this.notInExclusionList.bind(this);
+}
+
+CAVEATS
+
+Given that our implementation does not refactor or modify existing components, it is hard to conceive of significant issues that may arise as a result of this change. A potential downside may be the additional overhead necessitated by passing the entire playlist to the SearchResults and TrackList components, but in practice, the effect should be minimal as the playlists will be of modest size.
+
+Note that we can easily replace our notInExclusionList() method with a more general function in the TrackList component to implement other custom filters for displaying our search results as well as our playlist.
+
+It should also be noted that the user may very well want the ability to add duplicate tracks to their playlist, which would require a more substantial change to the existing behavior of Jammming. In that case, rather than completely filtering out tracks that are already included from the search results, we may instead wish to display them with a distinguishing marker so that the user can make an informed decision when editing their playlist.
+
